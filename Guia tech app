@@ -33,7 +33,13 @@ const funElementsData = {
             const completedAdvanced = advancedTopics.filter(id => completedTopics[id]).length;
             return advancedTopics.length > 0 && completedAdvanced >= 2; 
         }},
-        { id: 'navigatorPro', nameKey: 'badge_navigatorPro_name', descriptionKey: 'badge_navigatorPro_desc', icon: Sparkles, criteria: (completedTopics, allTopics) => allTopics.length > 0 && allTopics.every(t => completedTopics[t.id] && !t.id.startsWith('section_completed_')) },
+        { id: 'navigatorPro', nameKey: 'badge_navigatorPro_name', descriptionKey: 'badge_navigatorPro_desc', icon: Sparkles, criteria: (completedTopics, allTopics) => {
+            const learnableTopics = allTopics.filter(t => t && t.id && !t.id.startsWith('section_completed_'));
+            if (learnableTopics.length === 0) {
+                return false;
+            }
+            return learnableTopics.every(t => completedTopics[t.id]);
+        } },
     ],
     funFacts: {
         en: [
