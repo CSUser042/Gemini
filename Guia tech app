@@ -1,0 +1,239 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+    Smartphone, Tablet, Laptop, Wifi, Mail, Video, Brain, LightbulbIcon as Lightbulb, Mic, Camera, Shield, 
+    ChevronDown, ChevronUp, Globe, Volume2, Play, Pause, StopCircle, ZoomIn, ZoomOut, Sun, Moon, 
+    CheckCircle, Lock, RotateCcw, ArrowRightCircle, Award, Star, Sparkles, Info, Settings2, WifiIcon, CookieIcon, UserCog,
+    KeyRound, FolderKanban, MessageSquareShare, ImagePlus, Users, HelpCircle, FileText, MousePointer2, AppWindow
+} from 'lucide-react';
+
+// --- Data for Fun Elements ---
+const funElementsData = {
+    badges: [
+        { id: 'firstStep', nameKey: 'badge_firstStep_name', descriptionKey: 'badge_firstStep_desc', icon: Star, criteria: (completedTopics) => Object.keys(completedTopics).length >= 1 },
+        { id: 'techExplorer', nameKey: 'badge_techExplorer_name', descriptionKey: 'badge_techExplorer_desc', icon: Award, criteria: (completedTopics) => Object.keys(completedTopics).length >= 3 }, 
+        { id: 'wifiWhiz', nameKey: 'badge_wifiWhiz_name', descriptionKey: 'badge_wifiWhiz_desc', icon: WifiIcon, criteria: (completedTopics) => completedTopics['connectingToWifi'] },
+        { id: 'deviceBasicsDone', nameKey: 'badge_deviceBasicsDone_name', descriptionKey: 'badge_deviceBasicsDone_desc', icon: Smartphone, criteria: (completedTopics, allTopics) => {
+            const sectionTopics = allTopics.filter(t => t.sectionId === 'techBasics').map(t => t.id);
+            return sectionTopics.length > 0 && sectionTopics.every(id => completedTopics[id]);
+        }},
+        { id: 'internetIntroDone', nameKey: 'badge_internetIntroDone_name', descriptionKey: 'badge_internetIntroDone_desc', icon: Globe, criteria: (completedTopics, allTopics) => {
+            const sectionTopics = allTopics.filter(t => t.sectionId === 'internet').map(t => t.id);
+            return sectionTopics.length > 0 && sectionTopics.every(id => completedTopics[id]);
+        }},
+        { id: 'aiIntroDone', nameKey: 'badge_aiIntroDone_name', descriptionKey: 'badge_aiIntroDone_desc', icon: Brain, criteria: (completedTopics, allTopics) => {
+            const sectionTopics = allTopics.filter(t => t.sectionId === 'aiIntro').map(t => t.id);
+            return sectionTopics.length > 0 && sectionTopics.every(id => completedTopics[id]);
+        }},
+        { id: 'safetyBasicsDone', nameKey: 'badge_safetyBasicsDone_name', descriptionKey: 'badge_safetyBasicsDone_desc', icon: Shield, criteria: (completedTopics, allTopics) => {
+            const sectionTopics = allTopics.filter(t => t.sectionId === 'safety').map(t => t.id);
+            return sectionTopics.length > 0 && sectionTopics.every(id => completedTopics[id]);
+        }},
+        { id: 'advancedLearner', nameKey: 'badge_advancedLearner_name', descriptionKey: 'badge_advancedLearner_desc', icon: Sparkles, criteria: (completedTopics, allTopics) => {
+            const advancedTopics = allTopics.filter(t => t.sectionId === 'advancedTech').map(t => t.id);
+            const completedAdvanced = advancedTopics.filter(id => completedTopics[id]).length;
+            return advancedTopics.length > 0 && completedAdvanced >= 2; 
+        }},
+        { id: 'navigatorPro', nameKey: 'badge_navigatorPro_name', descriptionKey: 'badge_navigatorPro_desc', icon: Sparkles, criteria: (completedTopics, allTopics) => allTopics.length > 0 && allTopics.every(t => completedTopics[t.id] && !t.id.startsWith('section_completed_')) },
+    ],
+    funFacts: {
+        en: [
+            "The first computer mouse was made of wood!",
+            "AI can help doctors diagnose diseases earlier.",
+            "You can ask your voice assistant to tell you a joke!",
+            "The internet connects billions of devices worldwide.",
+            "Learning new tech skills can boost your brainpower!",
+            "The QWERTY keyboard layout was designed to slow typists down to prevent typewriter jams."
+        ],
+        es: [
+            "¡El primer ratón de computadora era de madera!",
+            "La IA puede ayudar a los médicos a diagnosticar enfermedades antes.",
+            "¡Puedes pedirle a tu asistente de voz que te cuente un chiste!",
+            "Internet conecta miles de millones de dispositivos en todo el mundo.",
+            "¡Aprender nuevas habilidades tecnológicas puede potenciar tu cerebro!",
+            "El teclado QWERTY se diseñó para ralentizar a los mecanógrafos y evitar atascos en las máquinas de escribir."
+        ]
+    }
+};
+
+// --- Translations ---
+const translations = {
+  en: {
+    appName: "Senior Tech & AI Navigator",
+    header: { title: "Tech & AI Navigator", switchToSpanish: "Español", accessibilityOptions: "Accessibility", myAchievements: "My Achievements" },
+    accessibility: { fontSize: "Font Size", increaseFont: "Increase Font", decreaseFont: "Decrease Font", theme: "Theme", lightTheme: "Light", darkTheme: "Dark", readAloud: "Read Aloud", reading: "Reading...", pauseReading: "Pause", resumeReading: "Resume", stopReading: "Stop", resetProgress: "Reset Progress", confirmReset: "Are you sure you want to reset all your learning progress and achievements? This cannot be undone.", progressReset: "Progress & Achievements Reset" },
+    progression: { markAsUnderstood: "I understand this", markAsNotUnderstood: "Mark as not understood", understood: "Understood", locked: "Locked", nextUp: "Next Up!", completedInSection: "Completed", allTopicsCompleted: "Section Complete!" },
+    welcome: { greeting: "Welcome!", intro: "Start your tech journey here! Learn the basics at your own pace, then explore more advanced topics when you're ready." },
+    fun: {
+        funFactTitle: "💡 Fun Fact / Helpful Tip",
+        achievementUnlocked: "Achievement Unlocked!",
+        topicComplete: "Great job! You've understood:",
+        sectionComplete: "Fantastic! You've completed the section:",
+        badge_firstStep_name: "First Steps", badge_firstStep_desc: "Completed your first topic.",
+        badge_techExplorer_name: "Tech Explorer", badge_techExplorer_desc: "Completed 3 topics.",
+        badge_wifiWhiz_name: "Wi-Fi Whiz", badge_wifiWhiz_desc: "Learned the basics of Wi-Fi.",
+        badge_deviceBasicsDone_name: "Device Basics Done", badge_deviceBasicsDone_desc: "Completed all 'Device Basics' topics.",
+        badge_internetIntroDone_name: "Internet Intro Done", badge_internetIntroDone_desc: "Completed all 'Internet & Communication' basics.",
+        badge_aiIntroDone_name: "AI Intro Done", badge_aiIntroDone_desc: "Completed all 'Understanding AI' basics.",
+        badge_safetyBasicsDone_name: "Safety Basics Done", badge_safetyBasicsDone_desc: "Completed all 'Staying Safe Online' basics.",
+        badge_advancedLearner_name: "Advanced Learner", badge_advancedLearner_desc: "Explored several advanced topics.",
+        badge_navigatorPro_name: "Navigator Pro", badge_navigatorPro_desc: "Completed all topics in the guide!",
+        noAchievementsYet: "Start learning to unlock achievements!", earnedAchievements: "Earned Achievements"
+    },
+    sections: [ 
+      { id: "techBasics", title: "Device Basics", icon: Smartphone, topics: [
+          { id: "smartphonesIntro", sectionId: "techBasics", title: "What's a Smartphone?", icon: Smartphone, 
+            content: [
+                "A smartphone is a mobile phone that can do much more than just calls.",
+                "Think of it as a small computer you can carry in your pocket.",
+                "You use its touchscreen to interact with 'apps' (programs)."
+            ], dependsOn: [] },
+          { id: "tabletsIntro", sectionId: "techBasics", title: "What's a Tablet?", icon: Tablet, 
+            content: [
+                "A tablet is like a larger smartphone, also with a touchscreen.",
+                "It's great for activities like reading, watching videos, or browsing the web on a bigger display."
+            ], dependsOn: ["smartphonesIntro"] },
+          { id: "laptopsIntro", sectionId: "techBasics", title: "What's a Laptop/Computer?", icon: Laptop, 
+            content: [
+                "Laptops and desktop computers are more powerful devices, typically with a physical keyboard and a mouse or touchpad.",
+                "They are used for a wide range of tasks, from writing documents to complex work."
+            ], dependsOn: ["smartphonesIntro"] },
+          { id: "connectingToWifi", sectionId: "techBasics", title: "What is Wi-Fi?", icon: WifiIcon,
+            content: [
+                "Wi-Fi is a way to connect your devices to the internet without wires.",
+                "You usually connect to a Wi-Fi network at home, or in public places like cafes or libraries."
+            ], dependsOn: ["smartphonesIntro"]},
+      ]},
+      { id: "internet", title: "Internet & Communication Basics", icon: Globe, topics: [
+          { id: "whatIsInternet", sectionId: "internet", title: "What is the Internet?", icon: Wifi, 
+            content: [
+                "The internet is a giant network connecting computers all over the world.",
+                "It lets you find information, communicate with people, and use many online services."
+            ], dependsOn: [] },
+          { id: "searchingOnlineIntro", sectionId: "internet", title: "Searching Online", icon: MessageSquareShare, 
+            content: [
+                "Search engines (like Google) help you find things on the internet.",
+                "You type what you're looking for (keywords) into a search bar."
+            ], dependsOn: ["whatIsInternet"] },
+          { id: "emailBasicsIntro", sectionId: "internet", title: "What is Email?", icon: Mail, 
+            content: [
+                "Email (electronic mail) is like sending digital letters over the internet.",
+                "You need an email address to send and receive messages."
+            ], dependsOn: ["whatIsInternet"] },
+          { id: "videoCallsIntro", sectionId: "internet", title: "What are Video Calls?", icon: Video, 
+            content: [
+                "Video calls let you see and talk to people in real-time using your device's camera and microphone.",
+                "Popular apps for this include WhatsApp, FaceTime, and Zoom."
+            ], dependsOn: ["emailBasicsIntro"] },
+      ]},
+      { id: "aiIntro", title: "Understanding AI Basics", icon: Brain, topics: [
+          { id: "whatIsAI", sectionId: "aiIntro", title: "What is AI (Simply)?", icon: Lightbulb, 
+            content: [
+                "AI (Artificial Intelligence) is about making computers 'think' or act in ways that seem smart, like humans do.",
+                "It helps computers learn, solve problems, and understand language."
+            ], dependsOn: [] },
+          { id: "everydayAIExamples", sectionId: "aiIntro", title: "AI Around You (Examples)", icon: Mic, 
+            content: [
+                "Voice assistants on your phone (like Siri or Google Assistant) use AI.",
+                "When Netflix or YouTube suggests shows you might like, that's AI at work.",
+                "Spam filters in your email use AI to catch unwanted messages."
+            ], dependsOn: ["whatIsAI"] },
+      ]},
+      { id: "safety", title: "Staying Safe Online: The Basics", icon: Shield, topics: [
+          { id: "strongPasswordsIntro", sectionId: "safety", title: "Password Basics", icon: KeyRound, 
+            content: [
+                "Passwords protect your online accounts.",
+                "A good password is hard for others to guess but easy for you to remember (or store safely)."
+            ], dependsOn: [] },
+          { id: "recognizingScamsIntro", sectionId: "safety", title: "Spotting Suspicious Messages", icon: HelpCircle, 
+            content: [
+                "Be careful with messages (emails, texts) that ask for personal information or money, especially if they seem urgent or unexpected.",
+                "If a message feels 'off' or too good to be true, it might be a scam."
+            ], dependsOn: ["strongPasswordsIntro"] },
+          { id: "basicOnlinePrivacyIntro", sectionId: "safety", title: "Basic Online Privacy Tips", icon: UserCog,
+            content: [
+                "Think before you share personal information online.",
+                "Websites often use 'cookies' to remember you; some also track your activity for ads."
+            ], dependsOn: ["recognizingScamsIntro"]},
+      ]},
+      { id: "advancedTech", title: "Next Steps & More Details", icon: Sparkles, topics: [
+          { id: "smartphoneDetails", sectionId: "advancedTech", title: "Smartphone Skills", icon: MousePointer2,
+            content: [
+                "Touchscreen Gestures: Practice tap, double-tap, long-press, swipe, and pinch-to-zoom.",
+                "Buttons & Ports: Identify power, volume, home button (or gesture area), charging port, headphone jack (if any).",
+                "App Stores: How to search for, install, and update apps from the 'App Store' (iPhone) or 'Google Play Store' (Android).",
+                "Organizing Apps: Creating folders to group apps on your home screen."
+            ], dependsOn: ["smartphonesIntro"]},
+          { id: "laptopFileManagement", sectionId: "advancedTech", title: "Laptop/PC File Skills", icon: FolderKanban,
+            content: [
+                "Understanding Files & Folders: Files store information (documents, photos); folders organize files.",
+                "Common File Types: .txt (text), .jpg (image), .pdf (document), .docx (Word document).",
+                "Saving & Opening Files: Using the 'File' menu (Save, Save As, Open).",
+                "Copy, Paste, Delete: Basic file operations using mouse right-click or keyboard shortcuts (Ctrl+C, Ctrl+V, Delete)."
+            ], dependsOn: ["laptopsIntro"]},
+          { id: "wifiConnectionSteps", sectionId: "advancedTech", title: "How to Connect to Wi-Fi", icon: WifiIcon,
+            content: [
+                "Open your device's Settings menu.",
+                "Look for 'Wi-Fi', 'Network & Internet', or a similar option.",
+                "Turn Wi-Fi on if it's off.",
+                "Your device will scan for available networks. Tap the name (SSID) of the network you want to join.",
+                "If it's a secure network, you'll be prompted to enter the password. Type it carefully (it's case-sensitive) and tap 'Connect' or 'Join'."
+            ], dependsOn: ["connectingToWifi"]},
+          { id: "advancedSearching", sectionId: "advancedTech", title: "Better Online Searching", icon: MessageSquareShare,
+            content: [
+                "Using Quotes: Search for an exact phrase by putting it in quotes (e.g., \"history of Florida\").",
+                "Using Minus Sign: Exclude a word by putting a minus sign before it (e.g., jaguar -car).",
+                "Site Specific Search: Search within a specific website (e.g., site:wikipedia.org renewable energy).",
+                "Evaluating Sources: Look for reputable websites (universities, government sites, well-known news organizations). Be cautious of biased or outdated information."
+            ], dependsOn: ["searchingOnlineIntro"]},
+          { id: "advancedEmail", sectionId: "advancedTech", title: "Managing Your Email", icon: Mail,
+            content: [
+                "Attachments: How to attach files (photos, documents) to your emails and open attachments you receive.",
+                "Organizing Email: Creating folders or labels to sort messages.",
+                "Spam & Junk Mail: Understanding what it is and how to mark messages as spam.",
+                "Email Signatures: Setting up an automatic signature for your outgoing emails."
+            ], dependsOn: ["emailBasicsIntro"]},
+          { id: "advancedVideoCalls", sectionId: "advancedTech", title: "Video Call Features", icon: Video,
+            content: [
+                "Screen Sharing: How to share your screen with others during a call (useful for showing something on your computer).",
+                "Virtual Backgrounds: Changing your background for privacy or fun.",
+                "Chat Feature: Using the text chat within a video call.",
+                "Inviting Others: How to invite people to join a call or meeting."
+            ], dependsOn: ["videoCallsIntro"]},
+          { id: "moreOnAI", sectionId: "advancedTech", title: "More About AI", icon: Brain,
+            content: [
+                "AI in Photos: How AI can sort photos by faces/objects or suggest edits.",
+                "AI in Shopping: How websites use AI to recommend products based on your browsing.",
+                "AI in Translation: Using apps like Google Translate to convert text or speech.",
+                "AI Ethics (Simple): Thinking about how AI should be used fairly and safely."
+            ], dependsOn: ["everydayAIExamples"]},
+          { id: "passwordManagers2FA", sectionId: "advancedTech", title: "Better Password Security", icon: KeyRound,
+            content: [
+                "Password Managers: Apps that create and store strong, unique passwords for all your accounts.",
+                "Two-Factor Authentication (2FA): An extra security step that usually involves a code sent to your phone after you enter your password. Enable it whenever possible!"
+            ], dependsOn: ["strongPasswordsIntro"]},
+          { id: "detailedScamsCookies", sectionId: "advancedTech", title: "Deeper Dive into Scams & Cookies", icon: CookieIcon,
+            content: [
+                "Phishing Scams: Fake emails or websites designed to steal your login details. Look for suspicious sender addresses and links.",
+                "Tech Support Scams: Pop-ups or calls claiming your computer has a virus, trying to get you to pay for fake services or give remote access.",
+                "Managing Cookies: Most browsers let you view, manage, and delete cookies in their settings. You can often choose to block third-party cookies (used for tracking across sites).",
+                "Privacy Settings: Regularly review privacy settings on apps and websites to control what data is shared."
+            ], dependsOn: ["recognizingScamsIntro", "basicOnlinePrivacyIntro"]},
+      ]}
+    ],
+    footer: { text: "Learn at your own pace. Technology is a tool to help you!" }
+  },
+  es: { 
+    appName: "Navegador Tecnológico y de IA para Adultos Mayores",
+    header: { title: "Navegador Tecno IA", switchToEnglish: "English", accessibilityOptions: "Accesibilidad", myAchievements: "Mis Logros" },
+    accessibility: { fontSize: "Fuente", increaseFont: "Aumentar", decreaseFont: "Disminuir", theme: "Tema", lightTheme: "Claro", darkTheme: "Oscuro", readAloud: "Leer Alto", reading: "Leyendo...", pauseReading: "Pausar", resumeReading: "Reanudar", stopReading: "Detener", resetProgress: "Reiniciar Progreso", confirmReset: "¿Seguro que quieres reiniciar tu progreso y logros? Esta acción no se puede deshacer.", progressReset: "Progreso y Logros Reiniciados" },
+    progression: { markAsUnderstood: "Entiendo esto", markAsNotUnderstood: "Marcar como no entendido", understood: "Entendido", locked: "Bloqueado", nextUp: "¡Siguiente!", completedInSection: "Completados", allTopicsCompleted: "¡Sección Completa!" },
+    welcome: { greeting: "¡Bienvenido/a!", intro: "¡Comienza tu viaje tecnológico aquí! Aprende los conceptos básicos a tu propio ritmo y luego explora temas más avanzados cuando estés listo/a." },
+    fun: {
+        funFactTitle: "💡 Dato Curioso / Consejo Útil",
+        achievementUnlocked: "¡Logro Desbloqueado!",
+        topicComplete: "¡Buen trabajo! Has entendido:",
+        sectionComplete: "¡Fantástico! Has completado la sección:",
+        badge_firstStep_name: "Primeros Pasos", badge_firstStep_desc: "Completaste tu primer tema.",
+        badge_techExplorer_name: "Explorador/a Tech", badge_techExplorer_desc: "Completaste 3 temas.",
+        badge_wifiWhiz_name: "As del Wi-Fi", badge_wifiWhiz_desc: "Aprendiste los básicos de Wi-Fi.",
+        badge_deviceBasicsDone_name: "Básicos de Dispositivos ¡OK!", badge_deviceBasicsDone_desc: "Completaste todos los te
